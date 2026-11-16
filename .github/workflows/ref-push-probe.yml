@@ -1,0 +1,12 @@
+# Installed into the scratch repository by run.sh (issue #4, AC-5).
+# Has no filters, so it shows whether a push to refs/beforecode/plans triggers
+# any workflow at all.
+name: ref-push probe
+
+on: [push, create, delete]
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "${{ github.event_name }} ${{ github.ref }} ${{ github.sha }}"

@@ -1,0 +1,37 @@
+# Installed into the scratch repository by run.sh (issue #4, AC-3 and AC-4).
+# Reads the plans ref from a pull_request workflow and writes a new file to it
+# with GITHUB_TOKEN, through git plumbing only.
+name: plans-ref probe
+
+on: pull_request
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Fetch the plans ref (AC-3)
+        run: git fetch --no-tags origin '+refs/beforecode/*:refs/beforecode-remote/*'
+
+      - name: Read a file from it (AC-3)
+        run: git show refs/beforecode-remote/plans:format-version
+
+      - name: Write a file and push with GITHUB_TOKEN (AC-4)
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          set -eu
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          parent=$(git rev-parse refs/beforecode-remote/plans)
+          export GIT_INDEX_FILE="$RUNNER_TEMP/plans-index"
+          git read-tree "$parent"
+          blob=$(echo "written by workflow run $GITHUB_RUN_ID" | git hash-object -w --stdin)
+          git update-index --add --cacheinfo "100644,$blob,actions/$BRANCH.md"
+          tree=$(git write-tree)
+          commit=$(git commit-tree "$tree" -p "$parent" -m "Write from GitHub Actions run $GITHUB_RUN_ID")
+          git push origin "$commit:refs/beforecode/plans"
